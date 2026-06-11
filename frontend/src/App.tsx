@@ -4,7 +4,15 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
-import PlaceholderPage from '@/pages/PlaceholderPage';
+import UsersPage from '@/pages/UsersPage';
+import ClientsPage from '@/pages/ClientsPage';
+import OfficersPage from '@/pages/OfficersPage';
+import BillsPage from '@/pages/BillsPage';
+import DispatchPage from '@/pages/DispatchPage';
+import NeftPaymentsPage from '@/pages/NeftPaymentsPage';
+import PumpPaymentsPage from '@/pages/PumpPaymentsPage';
+import DamagePage from '@/pages/DamagePage';
+import ReportsPage from '@/pages/ReportsPage';
 
 export default function App() {
   return (
@@ -15,12 +23,15 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/bills" element={<PlaceholderPage title="Bills" />} />
-            <Route path="/dispatch" element={<PlaceholderPage title="Dispatch" />} />
-            <Route path="/neft-payments" element={<PlaceholderPage title="NEFT Payments" />} />
-            <Route path="/pump-payments" element={<PlaceholderPage title="Pump Payments" />} />
-            <Route path="/damage" element={<PlaceholderPage title="Damage & Insurance" />} />
-            <Route path="/reports" element={<PlaceholderPage title="Reports" />} />
+            <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/officers" element={<OfficersPage />} />
+            <Route path="/bills" element={<BillsPage />} />
+            <Route path="/dispatch" element={<DispatchPage />} />
+            <Route path="/neft-payments" element={<NeftPaymentsPage />} />
+            <Route path="/pump-payments" element={<PumpPaymentsPage />} />
+            <Route path="/damage" element={<DamagePage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/users" element={<UsersPage />} />
           </Route>
         </Route>
 
