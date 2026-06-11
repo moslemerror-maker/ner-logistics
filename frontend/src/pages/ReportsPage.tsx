@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Truck, CreditCard, Fuel, ShieldAlert, Users, Building2, TrendingUp } from 'lucide-react';
+import { FileText, Truck, CreditCard, Fuel, ShieldAlert, Users, Building2, TrendingUp, Download } from 'lucide-react';
 import api from '@/lib/axios';
 import { fmtNum } from '@/lib/fmt';
+import Button from '@/components/ui/Button';
+import { InputField, SelectField } from '@/components/ui/Fields';
 
 interface Summary {
   billCount: number; totalBilled: string | null;
@@ -16,11 +19,65 @@ const statusColor: Record<string, string> = {
   PAID: 'bg-green-100 text-green-700',
 };
 
+const REPORT_TYPES = [
+  { value: 'accumulated', label: 'Accumulated (All Sheets)' },
+  { value: 'bills', label: 'Bills' },
+  { value: 'dispatch', label: 'Dispatch' },
+  { value: 'neft', label: 'NEFT Payments' },
+  { value: 'pump', label: 'Pump Payments' },
+  { value: 'damage', label: 'Damage & Insurance' },
+];
+
+const FINANCIAL_YEARS = (() => {
+  const years = [];
+  const curr = new Date().getFullYear();
+  for (let y = curr; y >= curr - 5; y--) years.push(`${y}-${y + 1}`);
+  return years;
+})();
+
 export default function ReportsPage() {
   const { data: s, isLoading } = useQuery<Summary>({
     queryKey: ['reports-summary'],
     queryFn: () => api.get('/api/reports/summary').then(r => r.data),
   });
+
+  const [dlType, setDlType] = useState('accumulated');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [billStatus, setBillStatus] = useState('');
+  const [claimStatus, setClaimStatus] = useState('');
+  const [financialYear, setFinancialYear] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [dlError, setDlError] = useState('');
+
+  async function handleDownload() {
+    setDlError('');
+    setDownloading(true);
+    try {
+      const params: Record<string, string> = { type: dlType };
+      if (from) params.from = from;
+      if (to) params.to = to;
+      if (billStatus && (dlType === 'bills' || dlType === 'accumulated')) params.status = billStatus;
+      if (claimStatus && (dlType === 'damage' || dlType === 'accumulated')) params.claimStatus = claimStatus;
+      if (financialYear && (dlType === 'bills' || dlType === 'accumulated')) params.financialYear = financialYear;
+
+      const res = await api.get('/api/reports/download', { params, responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      const cd = res.headers['content-disposition'] || '';
+      const nameMatch = cd.match(/filename="?([^"]+)"?/);
+      a.href = url;
+      a.download = nameMatch ? nameMatch[1] : `NER_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setDlError('Failed to generate report. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   const cards = [
     { label: 'Total Bills', value: s?.billCount ?? '—', icon: FileText, color: 'text-blue-600 bg-blue-50' },
@@ -34,18 +91,22 @@ export default function ReportsPage() {
     { label: 'Pending Claims', value: s?.pendingClaims ?? '—', icon: ShieldAlert, color: 'text-yellow-600 bg-yellow-50' },
   ];
 
+  const showBillFilters = dlType === 'bills' || dlType === 'accumulated';
+  const showDamageFilters = dlType === 'damage' || dlType === 'accumulated';
+
   return (
-    <div className="p-8">
-      <div className="mb-6">
+    <div className="p-8 space-y-8">
+      <div>
         <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Business summary overview</p>
+        <p className="text-slate-500 text-sm mt-0.5">Business summary and Excel downloads</p>
       </div>
 
+      {/* ── Summary cards ── */}
       {isLoading ? (
         <div className="text-slate-400 text-sm animate-pulse">Loading summary…</div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
             {cards.map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
                 <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg mb-3 ${color}`}>
@@ -72,6 +133,77 @@ export default function ReportsPage() {
           )}
         </>
       )}
+
+      {/* ── Excel Download ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-green-50">
+            <Download className="w-5 h-5 text-green-600" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Download Excel Report</h2>
+            <p className="text-xs text-slate-500">Generate and download reports with optional filters</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <SelectField
+            label="Report Type"
+            value={dlType}
+            onChange={e => setDlType(e.target.value)}
+          >
+            {REPORT_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </SelectField>
+
+          <InputField label="From Date" type="date" value={from} onChange={e => setFrom(e.target.value)} />
+          <InputField label="To Date" type="date" value={to} onChange={e => setTo(e.target.value)} />
+
+          {showBillFilters && (
+            <>
+              <SelectField label="Bill Status" value={billStatus} onChange={e => setBillStatus(e.target.value)}>
+                <option value="">All Statuses</option>
+                <option value="DRAFT">Draft</option>
+                <option value="SENT">Sent</option>
+                <option value="PAID">Paid</option>
+              </SelectField>
+              <SelectField label="Financial Year" value={financialYear} onChange={e => setFinancialYear(e.target.value)}>
+                <option value="">All Years</option>
+                {FINANCIAL_YEARS.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </SelectField>
+            </>
+          )}
+
+          {showDamageFilters && (
+            <SelectField label="Claim Status" value={claimStatus} onChange={e => setClaimStatus(e.target.value)}>
+              <option value="">All Claim Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="FILED">Filed</option>
+              <option value="SETTLED">Settled</option>
+              <option value="REJECTED">Rejected</option>
+            </SelectField>
+          )}
+        </div>
+
+        {dlError && (
+          <p className="mt-3 text-sm text-red-600">{dlError}</p>
+        )}
+
+        <div className="mt-5 flex items-center gap-3">
+          <Button onClick={handleDownload} disabled={downloading}>
+            <Download className="w-4 h-4" />
+            {downloading ? 'Generating…' : 'Download Excel'}
+          </Button>
+          <p className="text-xs text-slate-400">
+            {dlType === 'accumulated'
+              ? 'Downloads a multi-sheet workbook: Summary + Bills + Bill Items + Dispatch + NEFT + Pump + Damage'
+              : `Downloads ${REPORT_TYPES.find(t => t.value === dlType)?.label} as a single-sheet Excel file`}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
