@@ -3,15 +3,15 @@ import api from '@/lib/axios';
 
 interface User {
   id: number;
-  email: string;
+  username: string;
   name: string;
-  role: 'ADMIN' | 'OPERATOR';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR';
 }
 
 interface AuthContextValue {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -25,8 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { data } = await api.post('/api/auth/login', { email, password });
+  const login = useCallback(async (username: string, password: string) => {
+    const { data } = await api.post('/api/auth/login', { username, password });
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     setToken(data.token);
